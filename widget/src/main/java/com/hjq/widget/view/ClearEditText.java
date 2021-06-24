@@ -1,6 +1,5 @@
 package com.hjq.widget.view;
 
-import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.text.Editable;
@@ -24,31 +23,24 @@ public final class ClearEditText extends RegexEditText
         implements View.OnTouchListener,
         View.OnFocusChangeListener, TextWatcher {
 
-    private Drawable mClearDrawable;
+    private final Drawable mClearDrawable;
 
-    private OnTouchListener mOnTouchListener;
-    private OnFocusChangeListener mOnFocusChangeListener;
+    private OnTouchListener mTouchListener;
+    private OnFocusChangeListener mFocusChangeListener;
 
     public ClearEditText(Context context) {
-        super(context);
+        this(context, null);
     }
 
     public ClearEditText(Context context, AttributeSet attrs) {
-        super(context, attrs);
-    }
-
-    public ClearEditText(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
+        this(context, attrs, android.R.attr.editTextStyle);
     }
 
     @SuppressWarnings("all")
-    @SuppressLint("ClickableViewAccessibility")
-    @Override
-    protected void initialize(Context context, AttributeSet attrs) {
-        super.initialize(context, attrs);
+    public ClearEditText(Context context, AttributeSet attrs, int defStyleAttr) {
+        super(context, attrs, defStyleAttr);
 
-        // Wrap the drawable so that it can be tinted pre Lollipop
-        mClearDrawable = DrawableCompat.wrap(ContextCompat.getDrawable(context, R.drawable.ic_input_delete));
+        mClearDrawable = DrawableCompat.wrap(ContextCompat.getDrawable(context, R.drawable.input_delete_ic));
         mClearDrawable.setBounds(0, 0, mClearDrawable.getIntrinsicWidth(), mClearDrawable.getIntrinsicHeight());
         setDrawableVisible(false);
         super.setOnTouchListener(this);
@@ -56,14 +48,14 @@ public final class ClearEditText extends RegexEditText
         super.addTextChangedListener(this);
     }
 
-    private void setDrawableVisible(final boolean visible) {
+    private void setDrawableVisible(boolean visible) {
         if (mClearDrawable.isVisible() == visible) {
             return;
         }
 
         mClearDrawable.setVisible(visible, false);
-        final Drawable[] drawables = getCompoundDrawables();
-        setCompoundDrawables(
+        Drawable[] drawables = getCompoundDrawablesRelative();
+        setCompoundDrawablesRelative(
                 drawables[0],
                 drawables[1],
                 visible ? mClearDrawable : null,
@@ -71,45 +63,60 @@ public final class ClearEditText extends RegexEditText
     }
 
     @Override
-    public void setOnFocusChangeListener(final OnFocusChangeListener onFocusChangeListener) {
-        mOnFocusChangeListener = onFocusChangeListener;
+    public void setOnFocusChangeListener(OnFocusChangeListener onFocusChangeListener) {
+        mFocusChangeListener = onFocusChangeListener;
     }
 
     @Override
-    public void setOnTouchListener(final OnTouchListener onTouchListener) {
-        mOnTouchListener = onTouchListener;
+    public void setOnTouchListener(OnTouchListener onTouchListener) {
+        mTouchListener = onTouchListener;
     }
 
     /**
-     * {@link View.OnFocusChangeListener}
+     * {@link OnFocusChangeListener}
      */
 
     @Override
-    public void onFocusChange(final View view, final boolean hasFocus) {
+    public void onFocusChange(View view, boolean hasFocus) {
         if (hasFocus && getText() != null) {
             setDrawableVisible(getText().length() > 0);
         } else {
             setDrawableVisible(false);
         }
-        if (mOnFocusChangeListener != null) {
-            mOnFocusChangeListener.onFocusChange(view, hasFocus);
+        if (mFocusChangeListener != null) {
+            mFocusChangeListener.onFocusChange(view, hasFocus);
         }
     }
 
     /**
-     * {@link View.OnTouchListener}
+     * {@link OnTouchListener}
      */
 
     @Override
-    public boolean onTouch(final View view, final MotionEvent motionEvent) {
-        final int x = (int) motionEvent.getX();
-        if (mClearDrawable.isVisible() && x > getWidth() - getPaddingRight() - mClearDrawable.getIntrinsicWidth()) {
-            if (motionEvent.getAction() == MotionEvent.ACTION_UP) {
+    public boolean onTouch(View view, MotionEvent event) {
+        int x = (int) event.getX();
+
+        // 是否触摸了 Drawable
+        boolean touchDrawable = false;
+        // 获取布局方向
+        int layoutDirection = getLayoutDirection();
+        if (layoutDirection == LAYOUT_DIRECTION_LTR) {
+            // 从左往右
+            touchDrawable = x > getWidth() - mClearDrawable.getIntrinsicWidth() - getPaddingEnd() &&
+                    x < getWidth() - getPaddingEnd();
+        } else if (layoutDirection == LAYOUT_DIRECTION_RTL) {
+            // 从右往左
+            touchDrawable = x > getPaddingStart() &&
+                    x < getPaddingStart() + mClearDrawable.getIntrinsicWidth();
+        }
+
+        if (mClearDrawable.isVisible() && touchDrawable) {
+            if (event.getAction() == MotionEvent.ACTION_UP) {
                 setText("");
             }
             return true;
         }
-        return mOnTouchListener != null && mOnTouchListener.onTouch(view, motionEvent);
+        return mTouchListener != null && mTouchListener.onTouch(view, event);
     }
 
     /**
@@ -117,7 +124,7 @@ public final class ClearEditText extends RegexEditText
      */
 
     @Override
-    public void onTextChanged(final CharSequence s, final int start, final int before, final int count) {
+    public void onTextChanged(CharSequence s, int start, int before, int count) {
         if (isFocused()) {
             setDrawableVisible(s.length() > 0);
         }

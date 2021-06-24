@@ -24,8 +24,6 @@ public final class CountdownView extends AppCompatTextView implements Runnable {
     private int mCurrentSecond;
     /** 记录原有的文本 */
     private CharSequence mRecordText;
-    /** 标记是否重置了倒计控件 */
-    private boolean mFlag;
 
     public CountdownView(Context context) {
         super(context);
@@ -47,50 +45,39 @@ public final class CountdownView extends AppCompatTextView implements Runnable {
     }
 
     /**
-     * 重置倒计时控件
+     * 开始倒计时
      */
-    public void resetState() {
-        mFlag = true;
-    }
-
-    @Override
-    protected void onAttachedToWindow() {
-        super.onAttachedToWindow();
-        // 设置点击的属性
-        setClickable(true);
-    }
-
-    @Override
-    protected void onDetachedFromWindow() {
-        // 移除延迟任务，避免内存泄露
-        removeCallbacks(this);
-        super.onDetachedFromWindow();
-    }
-
-    @Override
-    public boolean performClick() {
-        boolean click = super.performClick();
+    public void start() {
         mRecordText = getText();
         setEnabled(false);
         mCurrentSecond = mTotalSecond;
         post(this);
-        return click;
     }
 
     /**
-     * {@link Runnable}
+     * 结束倒计时
      */
+    public void stop() {
+        setText(mRecordText);
+        setEnabled(true);
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        // 移除延迟任务，避免内存泄露
+        removeCallbacks(this);
+    }
+
     @SuppressLint("SetTextI18n")
     @Override
     public void run() {
-        if (mCurrentSecond == 0 || mFlag) {
-            setText(mRecordText);
-            setEnabled(true);
-            mFlag = false;
-        } else {
-            mCurrentSecond--;
-            setText(mCurrentSecond + " " + TIME_UNIT);
-            postDelayed(this, 1000);
+        if (mCurrentSecond == 0) {
+            stop();
+            return;
         }
+        mCurrentSecond--;
+        setText(mCurrentSecond + " " + TIME_UNIT);
+        postDelayed(this, 1000);
     }
 }

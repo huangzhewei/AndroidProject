@@ -9,7 +9,6 @@ import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.fragment.app.Fragment;
 
 import com.umeng.analytics.MobclickAgent;
 import com.umeng.commonsdk.UMConfigure;
@@ -33,61 +32,15 @@ public final class UmengClient {
         try {
             Bundle metaData = application.getPackageManager().getApplicationInfo(application.getPackageName(), PackageManager.GET_META_DATA).metaData;
             // 友盟统计，API 说明：https://developer.umeng.com/docs/66632/detail/101814#h1-u521Du59CBu5316u53CAu901Au7528u63A5u53E32
-            UMConfigure.init(application, String.valueOf(metaData.get("UMENG_APPKEY")),"umeng",UMConfigure.DEVICE_TYPE_PHONE,"");
+            UMConfigure.init(application, String.valueOf(metaData.get("UMENG_APPKEY")),"umeng", UMConfigure.DEVICE_TYPE_PHONE, "");
+            // 选用自动采集模式：https://developer.umeng.com/docs/119267/detail/118588#h1-u9875u9762u91C7u96C63
+            MobclickAgent.setPageCollectionMode(MobclickAgent.PageMode.AUTO);
             // 初始化各个平台的 Key
             PlatformConfig.setWeixin(String.valueOf(metaData.get("WX_APPID")), String.valueOf(metaData.get("WX_APPKEY")));
             PlatformConfig.setQQZone(String.valueOf(metaData.get("QQ_APPID")), String.valueOf(metaData.get("QQ_APPKEY")));
-            PlatformConfig.setSinaWeibo(String.valueOf(metaData.get("SN_APPID")), String.valueOf(metaData.get("SN_APPKEY")),"http://sns.whalecloud.com");
-
-            // 豆瓣RENREN平台目前只能在服务器端配置
-            //PlatformConfig.setYixin("yxc0614e80c9304c11b0391514d09f13bf");
-            //PlatformConfig.setTwitter("3aIN7fuF685MuZ7jtXkQxalyi", "MK6FEYG63eWcpDFgRYw4w9puJhzDl0tyuqWjZ3M7XJuuG7mMbO");
-            //PlatformConfig.setAlipay("2015111700822536");
-            //PlatformConfig.setLaiwang("laiwangd497e70d4", "d497e70d4c3e4efeab1381476bac4c5e");
-            //PlatformConfig.setPinterest("1439206");
-            //PlatformConfig.setKakao("e4f60e065048eb031e235c806b31c70f");
-            //PlatformConfig.setDing("dingoalmlnohc0wggfedpk");
-            //PlatformConfig.setVKontakte("5764965","5My6SNliAaLxEm3Lyd9J");
-            //PlatformConfig.setDropbox("oz8v5apet3arcdy","h7p2pjbzkkxt02a");
         } catch (PackageManager.NameNotFoundException e) {
             e.printStackTrace();
         }
-    }
-
-    /**
-     * Activity 统计
-     */
-    public static void onResume(Activity activity) {
-        // 手动统计页面
-         MobclickAgent.onPageStart(activity.getTitle().toString());
-        // 友盟统计
-        MobclickAgent.onResume(activity);
-    }
-
-    /**
-     * Activity 统计
-     */
-    public static void onPause(Activity activity) {
-        // 手动统计页面，必须保证 onPageEnd 在 onPause 之前调用，因为SDK会在 onPause 中保存onPageEnd统计到的页面数据
-        MobclickAgent.onPageStart(activity.getTitle().toString());
-        // 友盟统计
-        MobclickAgent.onPause(activity);
-    }
-
-    /**
-     * Fragment 统计
-     */
-    public static void onResume(Fragment fragment) {
-        // 友盟统计
-        MobclickAgent.onResume(fragment.getContext());
-    }
-
-    /**
-     * Fragment 统计
-     */
-    public static void onPause(Fragment fragment) {
-        // 友盟统计
-        MobclickAgent.onPause(fragment.getContext());
     }
 
     /**
@@ -105,11 +58,11 @@ public final class UmengClient {
                     .withMedia(data.create())
                     .setCallback(listener != null ? new UmengShare.ShareListenerWrapper(platform.getThirdParty(), listener) : null)
                     .share();
-        } else {
-            // 当分享的平台软件可能没有被安装的时候
-            if (listener != null) {
-                listener.onError(platform, new PackageManager.NameNotFoundException("Is not installed"));
-            }
+            return;
+        }
+        // 当分享的平台软件可能没有被安装的时候
+        if (listener != null) {
+            listener.onError(platform, new PackageManager.NameNotFoundException("Is not installed"));
         }
     }
 
@@ -122,7 +75,6 @@ public final class UmengClient {
      */
     public static void login(Activity activity, Platform platform, UmengLogin.OnLoginListener listener) {
         if (isAppInstalled(activity, platform)) {
-
             try {
                 // 删除旧的第三方登录授权
                 UMShareAPI.get(activity).deleteOauth(activity, platform.getThirdParty(), null);
@@ -130,13 +82,14 @@ public final class UmengClient {
                 Thread.sleep(200);
                 // 开启新的第三方登录授权
                 UMShareAPI.get(activity).getPlatformInfo(activity, platform.getThirdParty(), listener != null ? new UmengLogin.LoginListenerWrapper(platform.getThirdParty(), listener) : null);
-            } catch (InterruptedException ignored) {}
-
-        } else {
-            // 当登录的平台软件可能没有被安装的时候
-            if (listener != null) {
-                listener.onError(platform, new PackageManager.NameNotFoundException("Is not installed"));
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
+            return;
+        }
+        // 当登录的平台软件可能没有被安装的时候
+        if (listener != null) {
+            listener.onError(platform, new PackageManager.NameNotFoundException("Is not installed"));
         }
     }
 
@@ -156,7 +109,8 @@ public final class UmengClient {
 
     private static boolean isAppInstalled(Context context, @NonNull final String packageName) {
         try {
-            return context.getPackageManager().getApplicationInfo(packageName, 0) != null;
+            context.getPackageManager().getApplicationInfo(packageName, 0);
+            return true;
         } catch (PackageManager.NameNotFoundException e) {
             e.printStackTrace();
             return false;
